@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="header">
+        <h1>School Bus Schedule</h1>
+        <div class="pill">Malang</div>
+    </div>
+    
+    <div class="card form-container">
+        <form id="prediction-form">
+            <div class="form-group">
+                <select class="form-control clean-select" id="current-stop" required>
+                    <option value="" disabled selected>Select current stop</option>
+                    <option value="0">SPBU Tlogomas (BT01)</option>
+                    <option value="1">SD Dinoyo 2 (BT02)</option>
+                    <option value="2">SMA 9 (BT03)</option>
+                    <option value="3">SMA 8 (BT04)</option>
+                    <option value="4">MAN 2 (BT05)</option>
+                    <option value="5">SMA Dempo (BT06)</option>
+                    <option value="6">SMP 4 (BT07)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <input type="datetime-local" class="form-control clean-input" id="current-time" required>
+            </div>
+            
+            <button type="submit" class="btn-predict">
+                <span class="btn-text">Calculate Route</span>
+                <div class="loader" style="display: none;"></div>
+            </button>
+        </form>
+    </div>
+    
+    <div class="results-container" id="results" style="display: none;">
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-label">Current Time</div>
+                <div class="status-value" id="current-time-display"></div>
+            </div>
+            <div class="status-divider"></div>
+            <div class="status-item">
+                <div class="status-label">Current Stop</div>
+                <div class="status-value" id="current-stop-display"></div>
+            </div>
+        </div>
+        
+        <div class="schedule-list">
+            <div class="schedule-header">
+                <h2>Predicted Arrivals</h2>
+                <div class="refresh-hint">Updates every minute</div>
+            </div>
+            <div id="schedule-items"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+:root {
+    --primary-color: #0066FF;
+    --primary-light: #E5F0FF;
+    --text-color: #1A1A1A;
+    --text-secondary: #666666;
+    --border-color: #E5E5E5;
+    --background: #FFFFFF;
+    --card-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    --transition: all 0.3s ease;
+}
+
+body {
+    background: #F8F9FA;
+    color: var(--text-color);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+.container {
+    max-width: 700px;
+    margin: 3rem auto;
+    padding: 0 1.5rem;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+
+.header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.02em;
+}
+
+.pill {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: var(--primary-light);
+    color: var(--primary-color);
+    border-radius: 100px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.card {
+    background: var(--background);
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: var(--card-shadow);
+}
+
+.form-container {
+    margin-bottom: 2rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    font-size: 1rem;
+    transition: var(--transition);
+    background: var(--background);
+}
+
+.clean-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23666666' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    padding-right: 2.5rem;
+}
+
+.clean-input::-webkit-calendar-picker-indicator {
+    background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 2H4C2.89543 2 2 2.89543 2 4V12C2 13.1046 2.89543 14 4 14H12C13.1046 14 14 13.1046 14 12V4C14 2.89543 13.1046 2 12 2Z' stroke='%23666666' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M2 6H14' stroke='%23666666' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px var(--primary-light);
+}
+
+.btn-predict {
+    width: 100%;
+    padding: 1rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.btn-predict:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 102, 255, 0.2);
+}
+
+.loader {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #ffffff;
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    animation: rotation 1s linear infinite;
+}
+
+@keyframes rotation {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.status-bar {
+    background: var(--background);
+    border-radius: 16px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--card-shadow);
+}
+
+.status-item {
+    flex: 1;
+    text-align: center;
+}
+
+.status-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+.status-value {
+    font-weight: 500;
+    font-size: 1.125rem;
+}
+
+.status-divider {
+    width: 1px;
+    height: 40px;
+    background: var(--border-color);
+    margin: 0 1.5rem;
+}
+
+.schedule-list {
+    background: var(--background);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: var(--card-shadow);
+}
+
+.schedule-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.schedule-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.refresh-hint {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.schedule-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 1rem;
+    border-radius: 12px;
+    transition: var(--transition);
+}
+
+.schedule-item:hover {
+    background: var(--primary-light);
+}
+
+.stop-info {
+    flex: 1;
+}
+
+.stop-name {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+
+.stop-id {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.time-info {
+    text-align: right;
+}
+
+.estimated-time {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+
+.margin {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 600px) {
+    .container {
+        margin: 1.5rem auto;
+    }
+    
+    .card {
+        padding: 1.5rem;
+    }
+    
+    .header h1 {
+        font-size: 2rem;
+    }
+}
+</style>
+
+<script>
+function calculateMinutesToArrival(estimatedTime, currentTime) {
+    const [hours, minutes] = estimatedTime.split(':').map(Number);
+    const estimated = hours * 60 + minutes;
+    
+    const [currentHours, currentMinutes] = currentTime.split(':').map(Number);
+    const current = currentHours * 60 + currentMinutes;
+    
+    return estimated - current;
+}
+
+document.getElementById('prediction-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const button = this.querySelector('.btn-predict');
+    const buttonText = button.querySelector('.btn-text');
+    const loader = button.querySelector('.loader');
+    
+    // Show loading state
+    buttonText.style.opacity = '0';
+    loader.style.display = 'block';
+    button.disabled = true;
+    
+    const currentStop = document.getElementById('current-stop').value;
+    const currentTime = document.getElementById('current-time').value;
+    
+    fetch('/api/predict', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            current_stop: currentStop,
+            current_time: currentTime
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        document.getElementById('results').style.display = 'block';
+        document.getElementById('current-time-display').textContent = data.current_time;
+        document.getElementById('current-stop-display').textContent = 
+            `${data.current_stop.name} (${data.current_stop.stop_id})`;
+        
+        const scheduleItems = document.getElementById('schedule-items');
+        scheduleItems.innerHTML = '';
+        
+        data.next_stops.forEach(stop => {
+            const minutesToArrival = calculateMinutesToArrival(stop.estimated_time, data.current_time);
+            const item = document.createElement('div');
+            item.className = 'schedule-item';
+            item.innerHTML = `
+                <div class="stop-info">
+                    <div class="stop-name">${stop.name}</div>
+                    <div class="stop-id">${stop.stop_id}</div>
+                </div>
+                <div class="time-info">
+                    <div class="estimated-time">${stop.estimated_time} (in ${minutesToArrival} min)</div>
+                    <div class="margin">${stop.error_margin}</div>
+                </div>
+            `;
+            scheduleItems.appendChild(item);
+        });
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert(error.message || 'An error occurred while making the prediction');
+    })
+    .finally(() => {
+        // Reset button state
+        buttonText.style.opacity = '1';
+        loader.style.display = 'none';
+        button.disabled = false;
+    });
+});
+
+// Set default datetime to now
+const now = new Date();
+now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+document.getElementById('current-time').value = now.toISOString().slice(0, 16);
+</script>
+{% endblock %}

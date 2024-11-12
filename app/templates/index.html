@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>Malang School Bus Schedule</h1>
+    
+    <div class="current-time">
+        Current Time: <span id="current-time"></span>
+    </div>
+    
+    <div class="current-location">
+        Current Stop: <span id="current-stop"></span>
+    </div>
+    
+    <div class="schedule-container">
+        <h2>Upcoming Stops</h2>
+        <table id="schedule">
+            <thead>
+                <tr>
+                    <th>Stop</th>
+                    <th>Estimated Time</th>
+                    <th>Margin</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function calculateMinutesToArrival(estimatedTime, currentTime) {
+    const [hours, minutes] = estimatedTime.split(':').map(Number);
+    const estimated = hours * 60 + minutes;
+    
+    const [currentHours, currentMinutes] = currentTime.split(':').map(Number);
+    const current = currentHours * 60 + currentMinutes;
+    
+    return estimated - current;
+}
+
+function updateSchedule() {
+    fetch('/api/current-location')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('current-time').textContent = data.current_time;
+            document.getElementById('current-stop').textContent = 
+                `${data.current_stop.name} (${data.current_stop.stop_id})`;
+            
+            const tbody = document.querySelector('#schedule tbody');
+            tbody.innerHTML = '';
+            
+            data.next_stops.forEach(stop => {
+                const minutesToArrival = calculateMinutesToArrival(stop.estimated_time, data.current_time);
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${stop.name} (${stop.stop_id})</td>
+                    <td>${stop.estimated_time} (within ${minutesToArrival} minutes)</td>
+                    <td>${stop.error_margin}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+// Update every minute
+setInterval(updateSchedule, 60000);
+updateSchedule();  // Initial update
+</script>
+{% endblock %}
