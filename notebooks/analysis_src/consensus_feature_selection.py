@@ -69,7 +69,7 @@ class FeatureImportanceAnalyzer:
         self.default_reliability_weight = 0.6
         self.default_diversity_weight = 0.4
 
-    def analyze_features(self, X, y, categorical_features, figsize=(15, 20), print_results=True):
+    def analyze_features(self, X, y, categorical_features, figsize=(18, 24), print_results=True):
         """Main method to analyze feature importance using multiple methods"""
         if print_results:
             print("Calculating feature importance using multiple methods...")
@@ -362,6 +362,102 @@ class FeatureImportanceAnalyzer:
         for i, feature in enumerate(consensus_features, 1):
             methods = [m for m, f in top_features.items() if feature in f]
             print(f"  {i}. {feature:<20} (Methods: {', '.join(methods)})")
+            
+    def visualize_method_characteristics(self, figsize=(15, 10)):
+        """Create a comprehensive diagram of the feature selection consensus mechanism"""
+        plt.style.use('seaborn-v0_8-white')
+        fig = plt.figure(figsize=figsize, facecolor=self.style_colors['background'])
+        
+        # Create a circular layout
+        methods = list(self.method_characteristics.keys())
+        n_methods = len(methods)
+        angles = np.linspace(0, 2*np.pi, n_methods, endpoint=False)
+        
+        # Create main axes for the circular diagram
+        ax_main = plt.subplot(111, facecolor=self.style_colors['background'])
+        ax_main.set_aspect('equal')
+        
+        # Plot central hub
+        center_circle = plt.Circle((0, 0), 0.2, color=self.style_colors['text'], alpha=0.1)
+        ax_main.add_artist(center_circle)
+        ax_main.text(0, 0, 'Consensus\nMechanism', ha='center', va='center', 
+                    color=self.style_colors['text'], fontsize=12, fontweight='bold')
+        
+        # Plot method nodes and their characteristics
+        for idx, (method, angle) in enumerate(zip(methods, angles)):
+            x = np.cos(angle) * 0.6
+            y = np.sin(angle) * 0.6
+            
+            method_circle = plt.Circle((x, y), 0.15, 
+                                     color=self.style_colors['bars'][idx % len(self.style_colors['bars'])],
+                                     alpha=0.8)
+            ax_main.add_artist(method_circle)
+            
+            ax_main.text(x, y, method.replace('_', '\n'), 
+                        ha='center', va='center',
+                        color='white', fontsize=10, fontweight='bold')
+            
+            ax_main.plot([0, x], [0, y], '--', 
+                        color=self.style_colors['grid'], 
+                        alpha=0.5, 
+                        linewidth=2)
+            
+            chars = self.method_characteristics[method]
+            char_text = '\n'.join([
+                f"• Type: {chars['type']}",
+                f"• Nonlinear: {'✓' if chars['handles_nonlinear'] else '✗'}",
+                f"• Interactions: {'✓' if chars['handles_interactions'] else '✗'}",
+                f"• Interpret.: {chars['interpretability']}",
+                f"• Comp.Cost: {chars['computational_cost']}"
+            ])
+            
+            text_angle = angle + np.pi/2
+            text_x = x + np.cos(text_angle) * 0.25
+            text_y = y + np.sin(text_angle) * 0.25
+            
+            ax_main.text(text_x, text_y, char_text,
+                        ha='left' if x > 0 else 'right',
+                        va='center',
+                        bbox=dict(facecolor=self.style_colors['background'],
+                                edgecolor=self.style_colors['grid'],
+                                alpha=0.9,
+                                boxstyle='round,pad=0.5'),
+                        color=self.style_colors['text'],
+                        fontsize=8)
+        
+        # Add weight information
+        weight_text = (f"Reliability Weight: {self.default_reliability_weight}\n"
+                      f"Diversity Weight: {self.default_diversity_weight}")
+        ax_main.text(0, -1.1, weight_text,
+                    ha='center', va='center',
+                    bbox=dict(facecolor=self.style_colors['background'],
+                             edgecolor=self.style_colors['grid'],
+                             alpha=0.9,
+                             boxstyle='round,pad=0.5'),
+                    color=self.style_colors['text'],
+                    fontsize=10)
+        
+        # Add title
+        ax_main.text(0, 1.2, 'Feature Selection Consensus Mechanism',
+                    ha='center', va='center',
+                    color=self.style_colors['text'],
+                    fontsize=14, fontweight='bold')
+        
+        # Add legend for characteristics
+        legend_text = ("✓ = Supported  |  ✗ = Not Supported\n"
+                      "Interpretation Levels: high > medium > low\n"
+                      "Computational Cost: high > medium > low")
+        ax_main.text(0, -1.3, legend_text,
+                    ha='center', va='center',
+                    color=self.style_colors['text'],
+                    fontsize=8, style='italic')
+        
+        # Set limits and remove axes
+        ax_main.set_xlim(-1.5, 1.5)
+        ax_main.set_ylim(-1.5, 1.5)
+        ax_main.axis('off')
+        
+        return fig, ax_main
 
 def run_feature_selection_experiment(data, target_col='duration'):
     """Run complete feature selection experiment"""
@@ -386,11 +482,11 @@ def run_feature_selection_experiment(data, target_col='duration'):
     return consensus_features, results, sensitivity_results
 
 # Usage example
-if __name__ == "__main__":
-    # Suppress warnings
-    warnings.filterwarnings('ignore', category=DeprecationWarning)
-    warnings.filterwarnings('ignore', category=FutureWarning)
-    warnings.filterwarnings('ignore', message='Converting `np.inexact` or `np.floating` to a dtype is deprecated')
+# if __name__ == "__main__":
+#     # Suppress warnings
+#     warnings.filterwarnings('ignore', category=DeprecationWarning)
+#     warnings.filterwarnings('ignore', category=FutureWarning)
+#     warnings.filterwarnings('ignore', message='Converting `np.inexact` or `np.floating` to a dtype is deprecated')
     
-    # Run feature selection
-    consensus_features, results, sensitivity_results = run_feature_selection_experiment(filtered_df)
+#     # Run feature selection
+#     consensus_features, results, sensitivity_results = run_feature_selection_experiment(filtered_df)
